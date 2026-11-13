@@ -1,9 +1,22 @@
 # Submission: Project 6, Task Time Detective
 
-## Author: Johannes Schleicher
+## Authors
+Johannes Schleicher (solo)
+
 **Team name:** Rent me if you can
 
 **Project:** Project 6: Task Time Detective, how long does each turnaround task take?
+
+**In short:** we did not just train a model. We rebuilt how a branch works, and that is why the numbers hold up.
+- **Understand the data first.** More staff means shorter turnarounds, because tasks are shared between people. When a
+  branch is closed, cars wait until it opens again. Both are modelled exactly, not learned.
+- **What drives each task:** one simple linear model per task, so every effect reads in minutes. A child seat adds
+  7.5 min to interior cleaning, a smoker's car 7.6 min to special cleaning, and weather affects only the exterior wash.
+  The one exception is damage repair: it varies by about ±16 min and no feature in the data explains that.
+- **Honest results** (each day predicted by models that never saw it): per-task WAPE **0.075** (baseline 0.55,
+  "strong" < 0.2), total time error **8.1 min** (baseline 99, "good" < 15), median error 2.3 min.
+- **What the customer hears:** during the day (88 % of cars) "ready at 14:35", off by 4.3 min on average. Just before
+  closing (12 %) "ready tomorrow at opening", the right day for 97 % of them.
 
 ## Problem and approach
 We only see which tasks were done and the total time until the car was ready. The baseline assumes
@@ -161,7 +174,7 @@ depends on when the car comes back (leave-one-day-out on validation):
 
 Half of the error comes from the 12 % of cars returned shortly before closing. Their exact ready minute rarely matters
 because they are not rented out again that evening. What matters is *which day* they are ready, and that is right for
-97 % of them. A customer-facing message would therefore be "ready at 14:35" during the day and "ready tomorrow from
+97 % of them. A customer-facing message would therefore be "ready at 14:35" during the day and "ready tomorrow at
 opening" near closing. All cars are still predicted and scored. The 4.3 min is not a claim to the README's "strong"
 level, which applies to all cars.
 
@@ -200,6 +213,11 @@ no secrets, no environment variables.
 
 ## Demo
 Slides (5 pages): [`submission/slides.pdf`](submission/slides.pdf)
+1. Rent me if you can: who I am.
+2. First step: understand the data (airport vs. centre branch, staff and opening hours).
+3. What drives each task (child seat, smoker's car, weather; damage repair as the exception).
+4. Honest results (baseline vs. ours vs. README targets).
+5. What the customer hears ("ready at 14:35" during the day, "ready tomorrow at opening" near closing).
 
 ## Next steps
 - Model the end-of-day decision directly ("will it finish today?") as a probability, and report both a ready time and
