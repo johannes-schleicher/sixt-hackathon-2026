@@ -13,7 +13,10 @@ a structure that holds for **all 2,791 validation turnarounds without a single v
 1. **Electric charging runs unattended**, in parallel with all other work.
 2. **The other tasks are shared between the `staff_on_duty`** of the branch. Each person works through their tasks
    one after the other. At one-person branches (BER/NUE/STR) everything is sequential; at airports, three people
-   work in parallel. Work time = max(charging, busiest person).
+   work in parallel. Work time = max(charging, busiest person). **With a damage repair, damage check → repair →
+   exterior wash run as one fixed sequence** (you wash after repairing). Without this chain, repair cars at two- and
+   three-person branches seemed to wait 22 min longer than everyone else; with it, all 67 validation repair cars fit
+   and their wait looks like everyone else's (median 3.5 min).
 3. **The car can first wait for a free person** (queue wait, typically 0 to 30 min).
 4. **Work happens only while the branch is open.** Work that does not finish before closing continues at the next
    opening. Cars dropped in the key box start at opening. This explains every total above 3 hours (up to about 2,400
@@ -70,16 +73,28 @@ Assumptions and choices:
 | Same, queue wait by (staff, weekday, rush), rare tasks tuned | open | local, numpy | total MAE 14.7, median AE 3.4, WAPE 0.075, per-task MAE mean 2.67 | about 1 s total | no |
 | Same + key-box queue rule (12 min per car ahead) | open | local, numpy | total MAE 13.3, median AE 3.2, WAPE 0.075, per-task MAE mean 2.67 | about 1 s total | no |
 | Same + "finished today?" logistic classifier near closing | open | local, numpy | total MAE 12.3, median AE 3.2, WAPE 0.075, per-task MAE mean 2.67 | about 2 s total | no |
-| Key-box rule + boosted median regression for the wait (no classifier), total ≥ work | open | local, numpy + scikit-learn | **total MAE 7.9, median AE 2.4, 90 % within 10 min, WAPE 0.075, per-task MAE mean 2.67** | about 2 s total | **yes** |
+| Key-box rule + boosted median regression for the wait (no classifier), total ≥ work | open | local, numpy + scikit-learn | total MAE 7.9, median AE 2.4, 90 % within 10 min, WAPE 0.075, per-task MAE mean 2.67 | about 2 s total | no |
+| Same + repair chain (damage check → repair → exterior wash) | open | local, numpy + scikit-learn | **total MAE 8.1, median AE 2.3, 91 % within 10 min, WAPE 0.075, per-task MAE mean 2.67** | about 2 s total | **yes** |
 
 Later train weeks the wait models never saw (wait fitted on weeks before the cut, scored after; task models as in the
 submission):
 
-| Cut | Median groups + classifier | Boosted median regression |
-| --- | --- | --- |
-| 25 Aug | 12.3 (Saturday 13.1) | **7.7** (Saturday 6.8) |
-| 8 Sep | 12.0 (Saturday 11.0) | **6.2** (Saturday 3.8) |
-| 15 Sep | 11.7 (Saturday 13.8) | **6.4** (Saturday 3.9) |
+| Cut | Median groups + classifier | Boosted median regression | + repair chain (chosen) |
+| --- | --- | --- | --- |
+| 25 Aug | 12.3 (Saturday 13.1) | 7.67 (Saturday 6.8) | **7.53** |
+| 8 Sep | 12.0 (Saturday 11.0) | 6.19 (Saturday 3.8) | **5.97** |
+| 15 Sep | 11.7 (Saturday 13.8) | 6.37 (Saturday 3.9) | **6.16** |
+
+The repair chain is better on all three later-week splits but slightly worse on the single validation week
+(7.91 → 8.08). That week's total error is dominated by about ten coin-flip calls at closing time, and the later weeks
+hold far more data. The chain is also what the data's structure shows, so we keep it.
+
+Learning the two rare tasks from train.csv as well was tried and dropped. We backed out about 1,100 implied repair
+times from the train totals using the chain. They confirm the validation effects (damage reported about +25 min;
+similar at every staff level). But adding them did not improve held-out repair error (12.57 → 12.57 to 12.65 min).
+For tyre checks it made things worse (4.23 → 4.5). No other feature explains the repair time (all correlations with
+the residual below 0.11), and within the same damage/class group it varies by about ±16 min. The 12.6 min error is
+therefore close to the noise floor of this task.
 
 Earlier versions of `cv.py` predicted each day on its own, which hid the Saturday key-box cars from Sunday's queue
 count. It now predicts the whole week and scores only the held-out day; the numbers above use the corrected version.
@@ -97,9 +112,9 @@ uses the absolute-error (median) loss.
 
 | Metric | Baseline | Ours (leave-one-day-out) | README "strong" |
 | --- | --- | --- | --- |
-| Total MAE (min) | 99 | **7.9** | < 5 |
-| Total median abs. error (min) | | **2.4** | |
-| Share of totals within 10 min | | **90 %** | |
+| Total MAE (min) | 99 | **8.1** | < 5 |
+| Total median abs. error (min) | | **2.3** | |
+| Share of totals within 10 min | | **91 %** | |
 | Per-task WAPE | 0.55 | **0.075** | < 0.2 |
 | Per-task MAE mean (macro) | 13.6 | **2.67** | |
 | Negative or missing estimates | 0 | 0 | 0 |
@@ -109,7 +124,8 @@ Reproducibility:
 - The wait model is gradient boosting with a fixed `random_state`.
 - `python run.py --repeat` prints `run twice: IDENTICAL` and runs in about 2 s.
 - Package versions are pinned in `requirements.txt`. The results depend on the scikit-learn version: we measured
-  7.91 min with 1.9.1, while a 1.8.0 run reported 7.62. Install exactly the pinned versions.
+  7.91 min with 1.9.1 for the model without the repair chain, while a 1.8.0 run of that same model reported 7.62.
+  Install exactly the pinned versions.
 
 **Per-task estimates** (validation week, where performed):
 
@@ -138,19 +154,20 @@ depends on when the car comes back (leave-one-day-out on validation):
 
 | Cars | n | Total MAE (min) | Share of all error |
 | --- | --- | --- | --- |
-| all | 2,791 | 7.9 | 100 % |
-| returned in the last 2 h before closing | 339 (12 %) | 35.6 | 55 % |
-| all others (returned during the day) | 2,452 (88 %) | **4.1** | 45 % |
+| all | 2,791 | 8.1 | 100 % |
+| returned in the last 2 h before closing | 339 (12 %) | 35.5 | 53 % |
+| all others (returned during the day) | 2,452 (88 %) | **4.3** | 47 % |
 | key-box cars (returned while closed) | 47 | 2.6 | |
 
 Half of the error comes from the 12 % of cars returned shortly before closing. Their exact ready minute rarely matters
 because they are not rented out again that evening. What matters is *which day* they are ready, and that is right for
 97 % of them. A customer-facing message would therefore be "ready at 14:35" during the day and "ready tomorrow from
-opening" near closing. All cars are still predicted and scored. The 4.1 min is not a claim to the README's "strong"
+opening" near closing. All cars are still predicted and scored. The 4.3 min is not a claim to the README's "strong"
 level, which applies to all cars.
 
 **Limits, honestly:**
-- Errors by day of the validation week (full model): Mon to Fri 3.5 to 8 min, Sun 3.7 min, but **Saturday 19.5 min**.
+- Errors by day of the validation week (leave-one-day-out): Mon to Fri 3.5 to 9 min, Sun 3.6 min, but
+  **Saturday 21 min**.
   Two Saturday cars at centre branches cause most of that:
   - STR 14:59 was predicted ready at about 45 min but was ready on Monday (2,434 min);
   - BER 15:19 was predicted to wait until Monday but was ready in 40 min.

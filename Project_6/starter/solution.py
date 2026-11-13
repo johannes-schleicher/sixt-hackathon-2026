@@ -83,12 +83,27 @@ def _elapsed(hours, branch, ts, work):
     raise ValueError(f"branch {branch} never opens")
 
 
+_NON_CHARGE = [t for t in TASKS if t != "electric_charging"]
+# With a damage repair the car goes through one fixed sequence: damage check -> repair -> exterior wash (you wash after
+# repairing). Found in validation_labels.csv: with this chain all 67 repair turnarounds fit the structure and their
+# remaining wait looks like everyone else's (median 3.5 min instead of 22 min at two- and three-person branches).
+_REPAIR_CHAIN = [_NON_CHARGE.index(t) for t in
+                 ("damage_check", "quick_damage_repair", "quick_exterior_cleaning", "normal_exterior_cleaning")]
+_REPAIR_COL = _NON_CHARGE.index("quick_damage_repair")
+
+
 def _work_time(durs, charge, k):
-    """Makespan: non-charging tasks spread over k people (longest first to least busy), charging in parallel."""
+    """Makespan: non-charging tasks spread over k people (longest first to least busy), charging in parallel.
+    `durs` columns are the non-charging tasks in TASKS order; a repair turns its chain into one job."""
     out = np.empty(len(durs))
     for i, (row, c, kk) in enumerate(zip(durs, charge, k)):
+        jobs = row
+        if row[_REPAIR_COL] > 0:
+            chained = row[_REPAIR_CHAIN].sum()
+            rest = np.delete(row, _REPAIR_CHAIN)
+            jobs = np.append(rest, chained)
         load = np.zeros(int(kk))
-        for j in sorted(row[row > 0], reverse=True):
+        for j in sorted(jobs[jobs > 0], reverse=True):
             load[np.argmin(load)] += j
         out[i] = max(load.max(), c)
     return out
