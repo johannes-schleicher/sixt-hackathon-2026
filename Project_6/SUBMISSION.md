@@ -133,6 +133,22 @@ model picks up, together with the predicted work of those cars:
 - key-box cars: 12.0 min per car ahead, so the 12th Sunday drop-off at a one-person branch waits about 2 h 10 min on
   Monday before work starts.
 
+**What it means for the customer ("your car is ready at …"):** return time + predicted total = ready time. Its accuracy
+depends on when the car comes back (leave-one-day-out on validation):
+
+| Cars | n | Total MAE (min) | Share of all error |
+| --- | --- | --- | --- |
+| all | 2,791 | 7.9 | 100 % |
+| returned in the last 2 h before closing | 339 (12 %) | 35.6 | 55 % |
+| all others (returned during the day) | 2,452 (88 %) | **4.1** | 45 % |
+| key-box cars (returned while closed) | 47 | 2.6 | |
+
+Half of the error comes from the 12 % of cars returned shortly before closing. Their exact ready minute rarely matters
+because they are not rented out again that evening. What matters is *which day* they are ready, and that is right for
+97 % of them. A customer-facing message would therefore be "ready at 14:35" during the day and "ready tomorrow from
+opening" near closing. All cars are still predicted and scored. The 4.1 min is not a claim to the README's "strong"
+level, which applies to all cars.
+
 **Limits, honestly:**
 - Errors by day of the validation week (full model): Mon to Fri 3.5 to 8 min, Sun 3.7 min, but **Saturday 19.5 min**.
   Two Saturday cars at centre branches cause most of that:
