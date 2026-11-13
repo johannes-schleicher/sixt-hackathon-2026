@@ -199,7 +199,7 @@ python cv.py                                     # honest leave-one-day-out numb
 no secrets, no environment variables.
 
 ## Demo
-<`submission/slides.pdf` or `submission/demo.mp4`: still to do>
+Slides (5 pages): [`submission/slides.pdf`](submission/slides.pdf)
 
 ## Next steps
 - Model the end-of-day decision directly ("will it finish today?") as a probability, and report both a ready time and
