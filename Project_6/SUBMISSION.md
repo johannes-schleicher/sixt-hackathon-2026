@@ -8,7 +8,10 @@ Johannes Schleicher (solo)
 **Project:** Project 6: Task Time Detective, how long does each turnaround task take?
 
 **In short:** we did not just train a model. We rebuilt how a branch works, and that is why the numbers hold up.
-- **Understand the data first.** More staff means shorter turnarounds, because tasks are shared between people. When a
+- **Understand the data first.** Before any modelling we ran a data analysis with an interactive dashboard (filters
+  by branch, vehicle class and date; queue vs. total time; what happens while the branch is closed; sum of tasks vs.
+  total time; staffing and location type). Comparing an airport branch (3 staff, open 24/7) with a centre branch
+  (1 staff, limited hours) showed the two key insights. More staff means shorter turnarounds, because tasks are shared between people. When a
   branch is closed, cars wait until it opens again. Both are modelled exactly, not learned.
 - **What drives each task:** one simple linear model per task, so every effect reads in minutes. A child seat adds
   7.5 min to interior cleaning, a smoker's car 7.6 min to special cleaning, and weather affects only the exterior wash.
@@ -19,7 +22,11 @@ Johannes Schleicher (solo)
   closing (12 %) "ready tomorrow at opening", the right day for 97 % of them.
 
 ## Problem and approach
-We only see which tasks were done and the total time until the car was ready. The baseline assumes
+**Step 1, data analysis.** We started with an interactive dashboard over the train data to see how turnaround time
+behaves per branch, staffing level and opening hours (screenshots on slide 2). It showed that the total is not the sum
+of the tasks, that more staff shortens it, and that closed hours add long waits. The structure below follows from that.
+
+**Step 2, model.** We only see which tasks were done and the total time until the car was ready. The baseline assumes
 *total = sum of task times*, which is the wrong picture. The validation week, which comes with true task times, shows
 a structure that holds for **all 2,791 validation turnarounds without a single violation**:
 
